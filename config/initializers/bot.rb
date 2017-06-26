@@ -1,26 +1,133 @@
 include Facebook::Messenger
 
 Bot.on :message do |message|
-  message.typing_on
-  message.reply(text: 'Hello, human!')
+  user = User.find_or_create_by(messenger_id: message.sender['id'])
+
+  if user.step == "phone"
+    user.cart["phone"] = message.text
+
+    message.reply(text: "Gracias")
+    message.reply(text: "Tu orden llegara en 10 minutos mas o menos")
+
+    products = Product.where(id: user.cart["product"])
+
+    elements = products.map do |product|
+          {
+            title: product.name,
+            subtitle: "100% Soft and Luxurious Cotton",
+            quantity: 1,
+            price: product.price,
+            currency: "COP",
+          }
+    end
+
+    total = products.map { |x| x.price }.reduce(&:+)
+
+    message.reply({
+    attachment: {
+      type: "template",
+      payload: {
+        template_type: "receipt",
+        recipient_name: "Stephane Crozatier",
+        order_number: Time.now.to_i,
+        currency: "COP",
+        payment_method: "Contra entrega",        
+        timestamp: "#{Time.now.to_i}", 
+        elements: elements,
+        summary: {
+          subtotal: total,
+          shipping_cost: 0,
+          total_tax: 0,
+          total_cost: total
+        }
+      }
+    }
+    })
+
+
+    # ENVIAR CORREO
+
+    user.step = "end"
+    user.save
+
+  elsif user.step == "look"
+    user.cart["look"] = message.text
+
+    message.reply(text: "Un numero de telefono por si acaso")
+
+    user.step = "phone"
+    user.save
+  elsif user.step == 'where'
+
+    user.cart["where"] = message.text
+
+    message.reply(text: "Como reconocerte ?")
+
+    user.step = "look"
+    user.save
+
+  else 
+
+    message.typing_on
+    message.reply(text: 'no entiendo :(')
+  end
 end
 
 Bot.on :postback do |postback|
+  user = User.find_or_create_by!(messenger_id: postback.sender['id'])
 
-  if postback.payload == 'USER_DEFINED_PAYLOAD'
-    postback.reply(text: 'Bienvenido a Mecato!')
-    postback.reply(text: 'Cual es tu tienda mas cercana ?')
+  if postback.payload == 'NO'
 
-    elements = Shop.all.map do |shop|
+    postback.reply(text: 'Donde esta ubicado ?')
+
+    user.step = 'where'
+    user.save
+
+  end
+
+  if user.step == "product"
+    user.cart["product"] = [] unless user.cart["product"]
+    user.cart["product"] << postback.payload
+
+    postback.reply({
+      attachment: {
+        type: "template",
+        payload: {
+          template_type: "button",
+          text: "Quiere pedir mas ?",
+          buttons: [
+            {
+              type: "postback",
+              title: "Si",
+              payload: "SI"
+            },
+            {
+              type: "postback",
+              title: "No",
+              payload: "NO"
+            }
+          ]
+        }
+      }
+    })
+
+    user.save
+
+  end
+
+  if user.step == "category"
+    category = Category.find(postback.payload)
+
+    elements = category.products.all.map do |product|
            {
-            title: shop.name,
+            title: product.name,
             #image_url: "https://petersfancybrownhats.com/company_image.png",
             subtitle: "We\'ve got the right hat for everyone.",
             buttons: [
               {
-                type: "web_url",
-                url: "https://petersfancybrownhats.com",
-                title: "View Website"
+                title: "escoger",
+                type: "postback",
+                payload: product.id
               }
             ]      
           }
@@ -36,6 +143,81 @@ Bot.on :postback do |postback|
       }
     }
     })
+
+    user.step = "product"
+    user.save
+  end
+
+  if user.step == "choose"
+    shop = Shop.find(postback.payload)
+    user.shop = shop
+    user.save!
+
+    postback.reply(text: 'De qué te antojas hoy ?')
+
+    elements = user.shop.categories.all.map do |category|
+           {
+            title: category.name,
+            #image_url: "https://petersfancybrownhats.com/company_image.png",
+            subtitle: "We\'ve got the right hat for everyone.",
+            buttons: [
+              {
+                title: "escoger",
+                type: "postback",
+                payload: category.id
+              }
+            ]      
+          }
+    end
+
+
+    postback.reply({
+      attachment: {
+      type: "template",
+      payload: {
+        template_type: "generic",
+        elements: elements
+      }
+    }
+    })
+
+    user.step = "category"
+    user.save
+
+  end
+
+  if postback.payload == 'USER_DEFINED_PAYLOAD'
+    postback.reply(text: 'Bienvenido a Mecato!')
+    postback.reply(text: 'Cual es tu tienda mas cercana ?')
+
+    elements = Shop.all.map do |shop|
+           {
+            title: shop.name,
+            #image_url: "https://petersfancybrownhats.com/company_image.png",
+            subtitle: "We\'ve got the right hat for everyone.",
+            buttons: [
+              {
+                title: "escoger",
+                type: "postback",
+                payload: shop.id
+              }
+            ]      
+          }
+    end
+
+
+    postback.reply({
+      attachment: {
+      type: "template",
+      payload: {
+        template_type: "generic",
+        elements: elements
+      }
+    }
+    })
+
+    user.step = "choose"
+    user.save
 
   end
 

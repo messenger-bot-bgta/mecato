@@ -1,0 +1,11 @@
+# Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  messenger_id: MyString
+  shop: 
+  step: MyString
+
+two:
+  messenger_id: MyString
+  shop: 
+  step: MyString

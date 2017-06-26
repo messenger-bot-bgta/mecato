@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20170626195337) do
+ActiveRecord::Schema.define(version: 20170626224532) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -77,6 +77,16 @@ ActiveRecord::Schema.define(version: 20170626195337) do
     t.string "name"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+  end
+
+  create_table "users", force: :cascade do |t|
+    t.string "messenger_id"
+    t.bigint "shop_id"
+    t.string "step"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.jsonb "cart", default: {}
+    t.index ["shop_id"], name: "index_users_on_shop_id"
   end
 
 end
